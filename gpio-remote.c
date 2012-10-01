@@ -1,5 +1,5 @@
 /**
- * Code based on pwm from Justin Griggs
+ * Code based on pwm from Justin Griggs and Randy Simons
  * Code under the GPL-V2 license
  */
 #include <linux/module.h>
