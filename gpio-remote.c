@@ -14,12 +14,21 @@
 #include "gpio-remote.h"
 
 
+/* Default pin */
 const int pin = 134;
 
-//pointer to data struct
-static struct pwm_data pwm_data_ptr;
+/* pointer to data struct */
+static struct gpio_remote_data gpio_remote_data_ptr;
+
+/* Counter to keep track of open files. */
 int Device_Open = 0;
-int Major;		/* Major number assigned to our device driver */
+
+/* Major number assigned to our device driver */
+int Major = 0;
+
+/* Dev name as it appears in /proc/devices   */
+#define DEVICE_NAME "kakudev"
+
 
 // do some kernel module documentation
 MODULE_AUTHOR("Qball Cow <qball@qballcow.nl>");
@@ -29,19 +38,19 @@ MODULE_LICENSE("GPL");
 
 
 // setup a GPIO pin for use
-static int pwm_setup_pin(uint32_t gpio_number) {
+static int gpio_remote_setup_pin(uint32_t gpio_number) {
 
 	int err;
 
 	// see if that pin is available to use
 	if (gpio_is_valid(gpio_number)) {
 
-		printk("pwm module: setting up gpio pin %i...",gpio_number);
+		printk("gpio_remote module: setting up gpio pin %i...",gpio_number);
 		// allocate the GPIO pin
-		err = gpio_request(gpio_number,"pwmIRQ");
+		err = gpio_request(gpio_number,"gpio_remoteIRQ");
 		//error check
 		if(err) {
-			printk("pwm module: failed to request GPIO %i\n",gpio_number);
+			printk("gpio_remote module: failed to request GPIO %i\n",gpio_number);
 			return -1;
 		}
 
@@ -50,16 +59,16 @@ static int pwm_setup_pin(uint32_t gpio_number) {
 
 		//error check
 		if(err) {
-			printk("pwm module: failed to set GPIO to ouput\n");
+			printk("gpio_remote module: failed to set GPIO to ouput\n");
 			return -1;
 		}
 
 		//add gpio data to struct
-		pwm_data_ptr.pin = gpio_number;
+		gpio_remote_data_ptr.pin = gpio_number;
 	}
 	else
 	{
-		printk("pwm module: requested GPIO is not valid\n");
+		printk("gpio_remote module: requested GPIO is not valid\n");
 		// return failure
 		return -1;
 	}
@@ -85,6 +94,8 @@ static int device_open(struct inode *inode, struct file *file)
 
 	return 0;
 }
+
+
 /* 
  * Called when a process closes the device file.
  */
@@ -200,6 +211,7 @@ device_write(struct file *filp, const char *buff, size_t len, loff_t * off)
 
 	return 4;
 }
+
 /* 
  * Called when a process, which already opened the dev file, attempts to
  * read from it.
@@ -219,10 +231,8 @@ struct file_operations fops = {
 	.release = device_release
 };
 
-int Major = 0;
-#define DEVICE_NAME "kakudev"	/* Dev name as it appears in /proc/devices   */
 
-static int __init pwm_start(void)
+static int __init gpio_remote_start(void)
 {
         Major = register_chrdev(0, DEVICE_NAME, &fops);
 
@@ -234,9 +244,9 @@ static int __init pwm_start(void)
 	printk(KERN_INFO "Loading PWM Module... Major: %i\n", Major);
 
 	// setup a GPIO
-	pwm_setup_pin(pin);
+	gpio_remote_setup_pin(pin);
 	
-	pwm_data_ptr.pin = pin;
+	gpio_remote_data_ptr.pin = pin;
 
 
 	gpio_set_value(pin, 0);
@@ -244,13 +254,13 @@ static int __init pwm_start(void)
 	return 0;
 }
 
-static void __exit pwm_end(void)
+static void __exit gpio_remote_end(void)
 {
 	printk(KERN_INFO "Exiting PWM Module. \n");
 
 
 	// release GPIO
-	gpio_free(pwm_data_ptr.pin);
+	gpio_free(gpio_remote_data_ptr.pin);
 
 	/* 
 	 * Unregister the device 
@@ -259,5 +269,5 @@ static void __exit pwm_end(void)
 }
 
 // entry and exit points
-module_init(pwm_start);
-module_exit(pwm_end);
+module_init(gpio_remote_start);
+module_exit(gpio_remote_end);
