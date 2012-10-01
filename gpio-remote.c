@@ -117,31 +117,33 @@ static int device_release(struct inode *inode, struct file *file)
 }
 
 
-void sendTelegram(unsigned long data, unsigned short pin) {
-        unsigned int periodusec = (unsigned long)data >> 23;
-        unsigned short repeats = 1 << (((unsigned long)data >> 20) & 7);
-
-        //Convert the base3-code to base4, to avoid lengthy calculations when transmitting.. Messes op timings.
-        unsigned long dataBase4 = 0;
+void sendTelegram(unsigned long data, unsigned short pin)
+{
+	unsigned int   periodusec = (unsigned long)data >> 23;
+	unsigned short repeats    = 1 << (((unsigned long)data >> 20) & 7);
 	unsigned short i;
-	unsigned short int j;
-        data = data & 0xfffff; //truncate to 20 bit
+	unsigned short j;
+
+	//Convert the base3-code to base4, to avoid lengthy calculations when transmitting.. Messes op timings.
+	unsigned long dataBase4 = 0;
+
+	//truncate to 20 bit
+	data = data & 0xFFFFF;
 
 
-        for (i=0; i<12; i++) {
-                dataBase4<<=2;
-                dataBase4|=(data%3);
-                data/=3;
-        }
+	for (i=0; i<12; i++) {
+		dataBase4<<=2;
+		dataBase4|=(data%3);
+		data/=3;
+	}
 
-        for (j=0;j<repeats;j++) {
-                //Sent one telegram             
-
-                //Use data-var as working var
-                data=dataBase4;
-                for (i=0; i<12; i++) {
-                        switch (data & 3) {
-                                case 0:
+	for (j=0;j<repeats;j++) {
+		//Sent one telegram             
+		//Use data-var as working var
+		data=dataBase4;
+		for (i=0; i<12; i++) {
+			switch (data & 3) {
+				case 0:
 					gpio_set_value(pin, 1);
 					udelay(periodusec);
 
@@ -153,8 +155,8 @@ void sendTelegram(unsigned long data, unsigned short pin) {
 
 					gpio_set_value(pin, 0);
 					udelay(periodusec*3);
-                                        break;
-                                case 1:
+					break;
+				case 1:
 					gpio_set_value(pin, 1);
 					udelay(periodusec*3);
 
@@ -166,8 +168,8 @@ void sendTelegram(unsigned long data, unsigned short pin) {
 
 					gpio_set_value(pin, 0);
 					udelay(periodusec);
-                                        break;
-                                case 2: //AKA: X or float
+					break;
+				case 2: //AKA: X or float
 					gpio_set_value(pin, 1);
 					udelay(periodusec);
 
@@ -179,18 +181,18 @@ void sendTelegram(unsigned long data, unsigned short pin) {
 
 					gpio_set_value(pin, 0);
 					udelay(periodusec);
-                                        break;
-                        }
-                        //Next trit
-                        data>>=2;
-                }
+					break;
+			}
+			//Next trit
+			data>>=2;
+		}
 
-                //Send termination/synchronisation-signal. Total length: 32 periods
+		//Send termination/synchronisation-signal. Total length: 32 periods
 		gpio_set_value(pin, 1);
 		udelay(periodusec);
 		gpio_set_value(pin, 0);
 		udelay(periodusec*31);
-        }
+	}
 }
 
 
