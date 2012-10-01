@@ -1,3 +1,7 @@
+/**
+ * Code based on pwm from Justin Griggs
+ * Code under the GPL-V2 license
+ */
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
