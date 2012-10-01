@@ -116,7 +116,9 @@ static int device_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-
+/**
+ * This loop is re-used with permission from Randy Simons.
+ */
 void sendTelegram(unsigned long data, unsigned short pin)
 {
 	unsigned int   periodusec = (unsigned long)data >> 23;
