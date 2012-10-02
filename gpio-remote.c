@@ -16,9 +16,6 @@
 #include <asm/io.h>
 
 #include "gpio-remote.h"
-
-const unsigned long max_timing_offset = 50;
-
 /* Default pin */
 static int pin = 134;
 
@@ -120,11 +117,8 @@ static int device_release(struct inode *inode, struct file *file)
  */
 void sendTelegram(unsigned long data, unsigned short pin)
 {
-	unsigned int periodusec   = (unsigned long)data >> 23;
-	unsigned int periodusecl  = periodusec-max_timing_offset;
-	unsigned int periodusech  = periodusec+max_timing_offset;
-    unsigned int periodusec3l = 3*periodusecl;
-    unsigned int periodusec3h = 3*periodusech;
+	unsigned long periodusec   = (unsigned long)data >> 23;
+	unsigned long periodusec3 = 3*periodusec;
 
 	unsigned short repeats    = 1 << (((unsigned long)data >> 20) & 7);
 	unsigned short i;
@@ -151,42 +145,42 @@ void sendTelegram(unsigned long data, unsigned short pin)
 			switch (data & 3) {
 				case 0:
 					gpio_set_value(pin, 1);
-                    usleep_range(periodusecl, periodusech);
+					udelay(periodusec);
 
 					gpio_set_value(pin, 0);
-                    usleep_range(periodusec3l, periodusec3h);
+					udelay(periodusec3);
 
 					gpio_set_value(pin, 1);
-                    usleep_range(periodusecl, periodusech);
+					udelay(periodusec);
 
 					gpio_set_value(pin, 0);
-                    usleep_range(periodusec3l, periodusec3h);
+					udelay(periodusec3);
 					break;
 				case 1:
 					gpio_set_value(pin, 1);
-                    usleep_range(periodusec3l, periodusec3h);
+					udelay(periodusec3);
 
 					gpio_set_value(pin, 0);
-                    usleep_range(periodusecl, periodusech);
+					udelay(periodusec);
 
 					gpio_set_value(pin, 1);
-                    usleep_range(periodusec3l, periodusec3h);
+					udelay(periodusec3);
 
 					gpio_set_value(pin, 0);
-                    usleep_range(periodusecl, periodusech);
+					udelay(periodusec);
 					break;
 				case 2: //AKA: X or float
 					gpio_set_value(pin, 1);
-                    usleep_range(periodusecl, periodusech);
+					udelay(periodusec);
 
 					gpio_set_value(pin, 0);
-                    usleep_range(periodusec3l, periodusec3h);
+					udelay(periodusec3);
 
 					gpio_set_value(pin, 1);
-                    usleep_range(periodusec3l, periodusec3h);
+					udelay(periodusec3);
 
 					gpio_set_value(pin, 0);
-                    usleep_range(periodusecl, periodusech);
+					udelay(periodusec);
 					break;
 			}
 			//Next trit
@@ -195,9 +189,9 @@ void sendTelegram(unsigned long data, unsigned short pin)
 
 		//Send termination/synchronisation-signal. Total length: 32 periods
 		gpio_set_value(pin, 1);
-        usleep_range(periodusecl, periodusech);
+		udelay(periodusec);
 		gpio_set_value(pin, 0);
-        usleep_range(periodusec*31-max_timing_offset, periodusec*31+max_timing_offset);
+		udelay(periodusec*31);
 	}
 }
 
