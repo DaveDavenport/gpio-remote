@@ -1,6 +1,6 @@
 obj-m = gpio-remote.o
-KVERSION=3.5.0-212-omap4
-INCLUDEDIR = /usr/src/linux-headers-$(VERSION)/arch/arm/plat-omap/include
+KVERSION=$(shell uname -r)
+INCLUDEDIR = /usr/src/linux-headers-$(KVERSION)/arch/arm/plat-omap/include
 
 all:
 	make -I $(INCLUDEDIR) -C /lib/modules/$(KVERSION)/build M=$(PWD) modules

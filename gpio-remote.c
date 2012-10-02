@@ -11,12 +11,13 @@
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/fs.h>
-#include <asm/io.h>
-#include <plat/dmtimer.h>
+#include <linux/delay.h>
 #include <linux/types.h>
+#include <asm/io.h>
 
 #include "gpio-remote.h"
 
+const unsigned long max_timing_offset = 50;
 
 /* Default pin */
 const int pin = 134;
@@ -31,13 +32,13 @@ int Device_Open = 0;
 int Major = 0;
 
 /* Dev name as it appears in /proc/devices   */
-#define DEVICE_NAME "kakudev"
+#define DEVICE_NAME "remotedev"
 
 
 // do some kernel module documentation
-MODULE_AUTHOR("Qball Cow <qball@qballcow.nl>");
-MODULE_DESCRIPTION("OMAP KaKu GPIO");
-MODULE_LICENSE("GPL");
+MODULE_AUTHOR       ("Qball Cow <qball@qballcow.nl>");
+MODULE_DESCRIPTION  ("OMAP KaKu GPIO");
+MODULE_LICENSE      ("GPL");
 
 
 
@@ -84,7 +85,7 @@ static int gpio_remote_setup_pin(uint32_t gpio_number) {
 
 
 
-/* 
+/*
  * Called when a process tries to open the device file, like
  * "cat /dev/mycharfile"
  */
@@ -100,16 +101,16 @@ static int device_open(struct inode *inode, struct file *file)
 }
 
 
-/* 
+/*
  * Called when a process closes the device file.
  */
 static int device_release(struct inode *inode, struct file *file)
 {
 	Device_Open--;		/* We're now ready for our next caller */
 
-	/* 
+	/*
 	 * Decrement the usage count, or else once you opened the file, you'll
-	 * never get get rid of the module. 
+	 * never get get rid of the module.
 	 */
 	printk(KERN_ALERT "Closing file.\n");
 
@@ -122,6 +123,11 @@ static int device_release(struct inode *inode, struct file *file)
 void sendTelegram(unsigned long data, unsigned short pin)
 {
 	unsigned int   periodusec = (unsigned long)data >> 23;
+	unsigned int   periodusecl = periodusec-max_timing_offset;
+	unsigned int   periodusech = periodusec+max_timing_offset;
+    unsigned int   periodusec3l = 3*periodusecl;
+    unsigned int   periodusec3h = 3*periodusech;
+
 	unsigned short repeats    = 1 << (((unsigned long)data >> 20) & 7);
 	unsigned short i;
 	unsigned short j;
@@ -140,49 +146,49 @@ void sendTelegram(unsigned long data, unsigned short pin)
 	}
 
 	for (j=0;j<repeats;j++) {
-		//Sent one telegram             
+		//Sent one telegram
 		//Use data-var as working var
 		data=dataBase4;
 		for (i=0; i<12; i++) {
 			switch (data & 3) {
 				case 0:
 					gpio_set_value(pin, 1);
-					udelay(periodusec);
+                    usleep_range(periodusecl, periodusech);
 
 					gpio_set_value(pin, 0);
-					udelay(periodusec*3);
+                    usleep_range(periodusec3l, periodusec3h);
 
 					gpio_set_value(pin, 1);
-					udelay(periodusec);
+                    usleep_range(periodusecl, periodusech);
 
 					gpio_set_value(pin, 0);
-					udelay(periodusec*3);
+                    usleep_range(periodusec3l, periodusec3h);
 					break;
 				case 1:
 					gpio_set_value(pin, 1);
-					udelay(periodusec*3);
+                    usleep_range(periodusec3l, periodusec3h);
 
 					gpio_set_value(pin, 0);
-					udelay(periodusec);
+                    usleep_range(periodusecl, periodusech);
 
 					gpio_set_value(pin, 1);
-					udelay(periodusec*3);
+                    usleep_range(periodusec3l, periodusec3h);
 
 					gpio_set_value(pin, 0);
-					udelay(periodusec);
+                    usleep_range(periodusecl, periodusech);
 					break;
 				case 2: //AKA: X or float
 					gpio_set_value(pin, 1);
-					udelay(periodusec);
+                    usleep_range(periodusecl, periodusech);
 
 					gpio_set_value(pin, 0);
-					udelay(periodusec*3);
+                    usleep_range(periodusec3l, periodusec3h);
 
 					gpio_set_value(pin, 1);
-					udelay(periodusec*3);
+                    usleep_range(periodusec3l, periodusec3h);
 
 					gpio_set_value(pin, 0);
-					udelay(periodusec);
+                    usleep_range(periodusecl, periodusech);
 					break;
 			}
 			//Next trit
@@ -191,36 +197,33 @@ void sendTelegram(unsigned long data, unsigned short pin)
 
 		//Send termination/synchronisation-signal. Total length: 32 periods
 		gpio_set_value(pin, 1);
-		udelay(periodusec);
+        usleep_range(periodusecl, periodusech);
 		gpio_set_value(pin, 0);
-		udelay(periodusec*31);
+        usleep_range(periodusec*31-max_timing_offset, periodusec*31+max_timing_offset);
 	}
 }
 
 
-/*  
- * Called when a process writes to dev file: echo "hi" > /dev/hello 
+/*
+ * Called when a process writes to dev file: echo "hi" > /dev/hello
  */
 static ssize_t
 device_write(struct file *filp, const char *buff, size_t len, loff_t * off)
 {
-	int value, data;
-	printk(KERN_ALERT "Sorry, this operation isn't supported. %u\n",len);
+	int data;
 
-	value = (int)buff;
 	if(len != 4) return -1;
-	
+
 	data = *((int*)(buff));
 
-	printk(KERN_ALERT "Fixing data: %u\n", data);
-	
-	//gpio_set_value(pin, (data != 0));
+	printk(KERN_INFO "Sending data: %u\n", data);
+
 	sendTelegram(data, pin);
 
 	return 4;
 }
 
-/* 
+/*
  * Called when a process, which already opened the dev file, attempts to
  * read from it.
  */
@@ -229,6 +232,7 @@ static ssize_t device_read(struct file *filp,	/* see include/linux/fs.h   */
 			   size_t length,	/* length of the buffer     */
 			   loff_t * offset)
 {
+    printk(KERN_ALERT "Reading from this device node is not supported.");
 	return 0;
 }
 
@@ -253,7 +257,7 @@ static int __init gpio_remote_start(void)
 
 	// setup a GPIO
 	gpio_remote_setup_pin(pin);
-	
+
 	gpio_remote_data_ptr.pin = pin;
 
 
@@ -270,8 +274,8 @@ static void __exit gpio_remote_end(void)
 	// release GPIO
 	gpio_free(gpio_remote_data_ptr.pin);
 
-	/* 
-	 * Unregister the device 
+	/*
+	 * Unregister the device
 	 */
 	unregister_chrdev(Major, DEVICE_NAME);
 }
