@@ -4,13 +4,8 @@
  */
 
 
-#ifndef PWM_H
-#define PWN_H
-
-// struct for gpio_remote object
-struct gpio_remote_data {
-	uint32_t pin;
-};
+#ifndef GPIO_REMOTE_H
+#define GPIO_REMOTE_H
 
 
 static int gpio_remote_setup_pin(uint32_t gpio_number);

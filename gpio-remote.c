@@ -20,10 +20,7 @@
 const unsigned long max_timing_offset = 50;
 
 /* Default pin */
-const int pin = 134;
-
-/* pointer to data struct */
-static struct gpio_remote_data gpio_remote_data_ptr;
+static int pin = 134;
 
 /* Counter to keep track of open files. */
 int Device_Open = 0;
@@ -40,6 +37,9 @@ MODULE_AUTHOR       ("Qball Cow <qball@qballcow.nl>");
 MODULE_DESCRIPTION  ("OMAP KaKu GPIO");
 MODULE_LICENSE      ("GPL");
 
+/* Allow you to set GPIO pin */
+module_param(pin, int, 0);
+MODULE_PARM_DESC(pin, "Set GPIO pin used to send out signal");
 
 
 // setup a GPIO pin for use
@@ -68,8 +68,6 @@ static int gpio_remote_setup_pin(uint32_t gpio_number) {
 			return -1;
 		}
 
-		//add gpio data to struct
-		gpio_remote_data_ptr.pin = gpio_number;
 	}
 	else
 	{
@@ -122,11 +120,11 @@ static int device_release(struct inode *inode, struct file *file)
  */
 void sendTelegram(unsigned long data, unsigned short pin)
 {
-	unsigned int   periodusec = (unsigned long)data >> 23;
-	unsigned int   periodusecl = periodusec-max_timing_offset;
-	unsigned int   periodusech = periodusec+max_timing_offset;
-    unsigned int   periodusec3l = 3*periodusecl;
-    unsigned int   periodusec3h = 3*periodusech;
+	unsigned int periodusec   = (unsigned long)data >> 23;
+	unsigned int periodusecl  = periodusec-max_timing_offset;
+	unsigned int periodusech  = periodusec+max_timing_offset;
+    unsigned int periodusec3l = 3*periodusecl;
+    unsigned int periodusec3h = 3*periodusech;
 
 	unsigned short repeats    = 1 << (((unsigned long)data >> 20) & 7);
 	unsigned short i;
@@ -258,9 +256,6 @@ static int __init gpio_remote_start(void)
 	// setup a GPIO
 	gpio_remote_setup_pin(pin);
 
-	gpio_remote_data_ptr.pin = pin;
-
-
 	gpio_set_value(pin, 0);
 	// return success
 	return 0;
@@ -272,7 +267,7 @@ static void __exit gpio_remote_end(void)
 
 
 	// release GPIO
-	gpio_free(gpio_remote_data_ptr.pin);
+	gpio_free(pin);
 
 	/*
 	 * Unregister the device
