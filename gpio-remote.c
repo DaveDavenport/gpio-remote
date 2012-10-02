@@ -34,7 +34,7 @@ int Major = 0;
 
 // do some kernel module documentation
 MODULE_AUTHOR       ("Qball Cow <qball@qballcow.nl>");
-MODULE_DESCRIPTION  ("OMAP KaKu GPIO");
+MODULE_DESCRIPTION  ("OMAP GPIO Remote control");
 MODULE_LICENSE      ("GPL");
 
 /* Allow you to set GPIO pin */
